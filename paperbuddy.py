@@ -226,7 +226,7 @@ class PaperBuddy:
         retrieval_chain = (
             {'input': (lambda x: x)}
             | RunnableAssign({
-                'history': itemgetter('input')
+                'conv_history': itemgetter('input')
                 | self.conv_store.as_retriever(search_kwargs={'k': 3})
                 | long_reorder
                 | _get_context_str
