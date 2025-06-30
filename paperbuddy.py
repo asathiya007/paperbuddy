@@ -155,9 +155,13 @@ class PaperBuddy:
 
              The user asked: {input}.
 
-             Relevant info retrieved from conversation history: {history}.
+             Relevant info retrieved from conversation history:
 
-             Relevant info retrieved from paper(s): {context}.
+             {conv_history}
+
+             Relevant info retrieved from paper(s):
+
+             {context}
 
              Answer only based on the retrieved info, and cite the sources used
              with "Sources:" followed by a bulleted list at the end of your
@@ -179,23 +183,37 @@ class PaperBuddy:
         def _save_input_output(state):
             # chunk input and output
             split_input = list(map(
-                lambda x: '[User]: ' + x,
+                lambda x: x + ' [Quote from user]',
                 chunker.split_text(state['input'])))
             split_output = list(map(
-                lambda x: '[Assistant]: ' + x,
+                lambda x: x[:x.rfind('References:\n')]
+                + ' [Quote from PaperBuddy]',
                 chunker.split_text(state['output'].content)))
             self.logger.info(
-                'Split user input and assistant output into chunks.')
+                'Split user input and PaperBuddy output into chunks.')
             self.conv_store.add_texts(split_input + split_output)
             self.logger.info('Added chunks to conversation store.')
             return state['output']
 
         # utility function for formatting context string from retrieved
-        # document chunks
-        def _get_context_str(chunks):
+        # chunks
+        def _get_context_str(chunks, paper_chunks=False):
             context_str = ''
             for chunk in chunks:
-                context_str += chunk.page_content
+                # source suffix does not need to be specified for conversation
+                # chunks or paper metadata chunks, since they already have the
+                # sources specified
+                source_suffix = ''
+                if paper_chunks:
+                    # if chunk has metadata with title, it is a chunk
+                    # of text directly from a paper, and needs a source suffix
+                    if hasattr(chunk, 'metadata'):
+                        metadata = chunk.metadata
+                        if 'Title' in metadata.keys():
+                            paper_title = chunk.metadata['Title']
+                            source_suffix = f' [Quote from {paper_title}]'
+                context_str += \
+                    chunk.page_content + source_suffix + '\n\n'
             return context_str
 
         # utility function for logging
@@ -218,7 +236,8 @@ class PaperBuddy:
                 'context': itemgetter('input')
                 | self.doc_store.as_retriever(search_kwargs={'k': 10})
                 | long_reorder
-                | _get_context_str
+                | RunnableLambda(lambda x: _get_context_str(
+                    x, paper_chunks=True))
                 | RunnableLambda(lambda x: _log_message(
                     x, 'Retrieved relevant context from papers.'))}))
         generation_chain = (
