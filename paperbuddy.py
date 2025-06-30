@@ -40,13 +40,13 @@ class PaperBuddy:
 
         # specify embedding model and chat model
         embedding_model = NVIDIAEmbeddings(model=EMBEDDING_MODEL_NAME)
-        chat_model = ChatNVIDIA(model=CHAT_MODEL_NAME)
+        chat_model = ChatNVIDIA(model=CHAT_MODEL_NAME, temperature=0)
         self.logger.info(f'Using {EMBEDDING_MODEL_NAME} embedding model.')
         self.logger.info(f'Using {CHAT_MODEL_NAME} chat model.')
 
         # get chunker
         chunker = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=50,
+            chunk_size=800, chunk_overlap=100,
             separators=['\n', '.', '!', '?'])
 
         # utility function for loading papers into document store
